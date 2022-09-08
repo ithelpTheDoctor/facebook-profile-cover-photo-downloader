@@ -2,24 +2,17 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from bs4 import BeautifulSoup
-from urllib.parse import quote,unquote,urljoin
-import html
+from urllib.parse import urljoin
 import re
 import requests
 import sys
 import os
 import time
 import json
-import html2text
 import pandas as pd
 import shutil
-import csv
 import argparse
-import traceback
 
 if getattr(sys, 'frozen', False):
     application_path = os.path.dirname(sys.executable)
@@ -141,7 +134,6 @@ def profile_photo(url,profile_name,profile="",cover=""):
 
 
 def main():
-    tutorial = ''
     arg_parser = argparse.ArgumentParser(description='Download High Quality Facebook Profile and Cover Photos.')
     
     arg_parser.add_argument('-f','--file-path',
@@ -150,30 +142,29 @@ def main():
         help='CSV or Excel Filepath',
         required=True)
     
-    arg_parser.add_argument('-t','--file-type',
-        metavar=' ',
-        type=str,
-        help="File type \"excel\" or \"csv\".",
-        required=True)
-    
     arg_parser.add_argument('-l','--login',help="Use Login.",action='store_true')
     
     args = arg_parser.parse_args()
    
     filepath = args.file_path
-    filetype = args.file_type.lower().strip()
-    if filetype=='excel':    
-        df = pd.read_excel(filepath)
-    else:
-        df = pd.read_csv(filepath)
-        
+    
+    try:
+        df = pd.read_csv(filepath, skip_blank_lines=True, 
+                         skipinitialspace=True,encoding_errors='ignore')
+    except:
+        try:
+            df = pd.read_excel(filepath)
+        except:
+            print('Couldn\'t read the file.')
+            sys.exit(1)
+            
     records = df.to_dict('records')
     
     data = {}
     
     for record in records:
         fb_name,fb_link = record['Name'], record['Link']
-        fb_name = re.sub('[\\/:*?"<>|]', '', fb_name)  # remove all windows illegal characters
+        fb_name = re.sub('[\\/:*?"<>|]', '', fb_name)  # remove all windows illegal characters for filename
         if data.get(fb_name):
             c = 1
             while True:
@@ -187,6 +178,7 @@ def main():
     if not initialize_chrome():
         print("Error : ", "Failed to start chromedriver")
         sys.exit(1)
+    
     if args.login:
         input('Press enter after you\'ve logged in.')
         
@@ -204,8 +196,7 @@ def main():
             continue
             
         print("\n","Downloading Profile : ",fb_link)
-        profile_photo(fb_link,fb_name,profile=profilepath,cover=coverpath)
-       
+        profile_photo(fb_link,fb_name,profile=profilepath,cover=coverpath)   
            
     driver.quit()
         
